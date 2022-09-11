@@ -11,14 +11,23 @@ namespace Carnac.Logic
         //
 
         public const int WH_KEYBOARD_LL = 13;
+        public const int WH_MOUSE_LL = 14;
         public const int WM_KEYDOWN = 256;
         public const int WM_KEYUP = 257;
         public const int WM_SYSKEYUP = 261;
         public const int WM_SYSKEYDOWN = 260;
         public const int WS_EX_TRANSPARENT = 0x00000020;
         public const int WS_EX_TOOLWINDOW = 0x00000080;
-        public  const int GWL_EXSTYLE = (-20);
-
+        public const int GWL_EXSTYLE = (-20);
+        public const int WM_LBUTTONDOWN = 0x0201;
+        public const int WM_LBUTTONUP = 0x0202;
+        public const int WM_RBUTTONDOWN = 0x0204;
+        public const int WM_RBUTTONUP = 0x0205;
+        public const int WM_RBUTTONDBLCLK = 0x0206;
+        public const int WM_MBUTTONDOWN = 0x0207;
+        public const int WM_MBUTTONUP = 0x0208;
+        public const int WM_MOUSEWHEEL = 0x020A;
+        public const int WM_MOUSEMOVE = 0x0200;
         //
         // ReSharper restore InconsistentNaming
 

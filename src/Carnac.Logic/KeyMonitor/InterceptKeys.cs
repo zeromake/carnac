@@ -16,33 +16,51 @@ namespace Carnac.Logic.KeyMonitor
         readonly IObservable<InterceptKeyEventArgs> keyStream;
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
         Win32Methods.LowLevelKeyboardProc callback;
+        Win32Methods.LowLevelKeyboardProc mouseCallback;
 
         InterceptKeys()
         {
             keyStream = Observable.Create<InterceptKeyEventArgs>(observer =>
             {
                 Debug.Write("Subscribed to keys");
-                IntPtr hookId = IntPtr.Zero;
+                IntPtr[] hookId = null;
                 // Need to hold onto this callback, otherwise it will get GC'd as it is an unmanged callback
                 callback = (nCode, wParam, lParam) =>
                 {
-                    if (nCode >= 0)
-                    {
+                    if (nCode >= 0) {
                         var eventArgs = CreateEventArgs(wParam, lParam);
                         observer.OnNext(eventArgs);
                         if (eventArgs.Handled)
                             return (IntPtr)1;
                     }
-
                     // ReSharper disable once AccessToModifiedClosure
-                    return Win32Methods.CallNextHookEx(hookId, nCode, wParam, lParam);
+                    return Win32Methods.CallNextHookEx(hookId[0], nCode, wParam, lParam);
                 };
-                hookId = SetHook(callback);
+                mouseCallback = (nCode, wParam, lParam) =>
+                {
+                    if (nCode >= 0)
+                    {
+                        var eventArgs = CreateMouseEventArgs(wParam, lParam);
+                        if (eventArgs != null)
+                        {
+                            observer.OnNext(eventArgs);
+                            if (eventArgs.Handled)
+                                return (IntPtr)1;
+                        }
+                    }
+                    // ReSharper disable once AccessToModifiedClosure
+                    return Win32Methods.CallNextHookEx(hookId[1], nCode, wParam, lParam);
+                };
+                hookId = SetHook(callback, mouseCallback);
                 return Disposable.Create(() =>
                 {
                     Debug.Write("Unsubscribed from keys");
-                    Win32Methods.UnhookWindowsHookEx(hookId);
+                    foreach(var hook in hookId)
+                    {
+                        Win32Methods.UnhookWindowsHookEx(hook);
+                    }
                     callback = null;
+                    mouseCallback = null;
                 });
             })
             .Publish().RefCount();
@@ -51,6 +69,31 @@ namespace Carnac.Logic.KeyMonitor
         public IObservable<InterceptKeyEventArgs> GetKeyStream()
         {
             return keyStream;
+        }
+        static InterceptKeyEventArgs CreateMouseEventArgs(IntPtr wParam, IntPtr lParam)
+        {
+            if (wParam == (IntPtr)Win32Methods.WM_MOUSEMOVE)
+            {
+                return null;
+            }
+            int button = 0;
+            if (wParam == (IntPtr)Win32Methods.WM_LBUTTONDOWN)
+            {
+                button |= 1;
+            }
+            if (wParam == (IntPtr)Win32Methods.WM_RBUTTONDOWN)
+            {
+                button |= 4;
+            }
+            if (wParam == (IntPtr)Win32Methods.WM_MBUTTONDOWN)
+            {
+                button |= 16;
+            }
+            if (button > 0)
+            {
+                return new InterceptKeyEventArgs(button);
+            }
+            return null;
         }
 
         static InterceptKeyEventArgs CreateEventArgs(IntPtr wParam, IntPtr lParam)
@@ -82,7 +125,7 @@ namespace Carnac.Logic.KeyMonitor
                 alt, control, shift);
         }
 
-        static IntPtr SetHook(Win32Methods.LowLevelKeyboardProc proc)
+        static IntPtr[] SetHook(Win32Methods.LowLevelKeyboardProc proc, Win32Methods.LowLevelKeyboardProc mouseCallback)
         {
             // NOTE: This requires FullTrust to use the Process class.
             //       There don't seem to be alternatives to achieving this in
@@ -92,7 +135,9 @@ namespace Carnac.Logic.KeyMonitor
             using (Process curProcess = Process.GetCurrentProcess())
             using (ProcessModule curModule = curProcess.MainModule)
             {
-                return Win32Methods.SetWindowsHookEx(Win32Methods.WH_KEYBOARD_LL, proc, Win32Methods.GetModuleHandle(curModule.ModuleName), 0);
+                IntPtr code1 = Win32Methods.SetWindowsHookEx(Win32Methods.WH_KEYBOARD_LL, proc, Win32Methods.GetModuleHandle(curModule.ModuleName), 0);
+                IntPtr code2 = Win32Methods.SetWindowsHookEx(Win32Methods.WH_MOUSE_LL, mouseCallback, Win32Methods.GetModuleHandle(curModule.ModuleName), 0);
+                return new IntPtr[] { code1, code2 };
             }
         }
     }

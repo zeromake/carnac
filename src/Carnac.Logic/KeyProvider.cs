@@ -157,38 +157,66 @@ namespace Carnac.Logic
 
         static IEnumerable<string> ToInputs(bool isLetter, bool isWinKeyPressed, InterceptKeyEventArgs interceptKeyEventArgs)
         {
-            var controlPressed = interceptKeyEventArgs.ControlPressed;
-            var altPressed = interceptKeyEventArgs.AltPressed;
-            var shiftPressed = interceptKeyEventArgs.ShiftPressed;
-            if (controlPressed)
-                yield return "Ctrl";
-            if (altPressed)
-                yield return "Alt";
-            if (isWinKeyPressed)
-                yield return "Win";
-
-            if (controlPressed || altPressed)
+            if (interceptKeyEventArgs != null)
             {
-                //Treat as a shortcut, don't be too smart
-                if (shiftPressed)
-                    yield return "Shift";
+                if (!interceptKeyEventArgs.IsMouse)
+                {
+                    var controlPressed = interceptKeyEventArgs.ControlPressed;
+                    var altPressed = interceptKeyEventArgs.AltPressed;
+                    var shiftPressed = interceptKeyEventArgs.ShiftPressed;
+                    if (controlPressed)
+                        yield return "Ctrl";
+                    if (altPressed)
+                        yield return "Alt";
+                    if (isWinKeyPressed)
+                        yield return "Win";
 
-                yield return interceptKeyEventArgs.Key.Sanitise();
-            }
-            else
-            {
-                string input;
-                var shiftModifiesInput = interceptKeyEventArgs.Key.SanitiseShift(out input);
+                    if (controlPressed || altPressed)
+                    {
+                        //Treat as a shortcut, don't be too smart
+                        if (shiftPressed)
+                            yield return "Shift";
 
-                if (!isLetter && !shiftModifiesInput && shiftPressed)
-                    yield return "Shift";
+                        yield return interceptKeyEventArgs.Key.Sanitise();
+                    }
+                    else
+                    {
+                        string input;
+                        var shiftModifiesInput = interceptKeyEventArgs.Key.SanitiseShift(out input);
 
-                if (interceptKeyEventArgs.ShiftPressed && shiftModifiesInput)
-                    yield return input;
-                else if (isLetter && !interceptKeyEventArgs.ShiftPressed)
-                    yield return interceptKeyEventArgs.Key.ToString().ToLower();
+                        if (!isLetter && !shiftModifiesInput && shiftPressed)
+                            yield return "Shift";
+
+                        if (interceptKeyEventArgs.ShiftPressed && shiftModifiesInput)
+                            yield return input;
+                        else if (isLetter && !interceptKeyEventArgs.ShiftPressed)
+                            yield return interceptKeyEventArgs.Key.ToString().ToLower();
+                        else
+                            yield return interceptKeyEventArgs.Key.Sanitise();
+                    }
+                }
                 else
-                    yield return interceptKeyEventArgs.Key.Sanitise();
+                {
+                    if (interceptKeyEventArgs.MouseButton > 0)
+                    { 
+                        string[] arr = new string[] {
+                            "MouseL ",
+                            "MouseLUP ",
+                            "MouseR ",
+                            "MouseRUP ",
+                            "MouseM ",
+                            "MouseMUp ",
+                        };
+                        for (int i = 0; i < 6; i++)
+                        {
+                            int n = (int)Math.Pow(2, i);
+                            if ((n & interceptKeyEventArgs.MouseButton) == n)
+                            {
+                                yield return arr[i];
+                            }
+                        }
+                    }
+                }
             }
         }
     }

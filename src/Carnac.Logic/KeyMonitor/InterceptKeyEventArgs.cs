@@ -25,5 +25,12 @@ namespace Carnac.Logic.KeyMonitor
         {
             return Key >= Keys.A && Key <= Keys.Z;
         }
+        public InterceptKeyEventArgs(int mouseButton)
+        {
+            MouseButton = mouseButton;
+            IsMouse = true;
+        }
+        public int MouseButton { get; private set; }
+        public bool IsMouse { get; private set; }
     }
 }
